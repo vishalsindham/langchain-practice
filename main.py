@@ -69,22 +69,14 @@ def run_agent(question: str):
 
     for _ in range(MAX_ITERATIONS):
         ai_message = llm_with_tools.invoke(messages)
-        
-        # If the LLM didn't request a tool, it's the final answer
-        if not ai_message.tool_calls:
-            return ai_message.content
-        
-        # Extract the first tool call
-        tool_call = ai_message.tool_calls[0]
-        
-        # Execute the tool using the string name to look it up in the dict
-        observation = tools_dict[tool_call["name"]].invoke(tool_call["args"])
-        
-        # Update memory history
         messages.append(ai_message)
-        messages.append(ToolMessage(content=str(observation), tool_call_id=tool_call["id"]))
-    print("ERROR : Max iterations reached wihtout a final answer.")
-    return None
+
+        for tool_call in ai_message.tool_calls:
+            tool_result = tools_dict[tool_call["name"]].invoke(tool_call)
+            messages.append(tool_result)
+        
+        final_response = llm_with_tools.invoke(messages)
+    return final_response.content
 
 if __name__ == "__main__":
     print("Hello LangChain Agent (.bind_tools)!")

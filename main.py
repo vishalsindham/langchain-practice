@@ -67,38 +67,22 @@ def run_agent(question: str):
         HumanMessage(content=question),
     ]
 
-    for iteration in range(1, MAX_ITERATIONS + 1):
-        print(f"\n--- Iteration {iteration} ---")
-
+    for _ in range(MAX_ITERATIONS):
         ai_message = llm_with_tools.invoke(messages)
-
-        tool_calls = ai_message.tool_calls
-
-        if not tool_calls:
-            print(f"\nFinal Answer: {ai_message.content}")
+        
+        # If the LLM didn't request a tool, it's the final answer
+        if not ai_message.tool_calls:
             return ai_message.content
         
-        # Process only the FIRST tool call - force one tool per iteration
-
-        tool_call      = tool_calls[0]
-        tool_name = tool_call.get("name")
-        tool_args = tool_call.get("args",{})
-        tool_call_id   = tool_call.get("id")
-
-        print(f" [Tool Selecte] {tool_name} with args: {tool_args}")
-
-        tool_to_use = tools_dict.get(tool_name)
-        if tool_to_use is None:
-            raise ValueError(f"Tool '{tool_name} not found'")
+        # Extract the first tool call
+        tool_call = ai_message.tool_calls[0]
         
-        observation = tool_to_use.invoke(tool_args)
-
-        print(f"    [Tool Result] {observation}")
-
+        # Execute the tool using the string name to look it up in the dict
+        observation = tools_dict[tool_call["name"]].invoke(tool_call["args"])
+        
+        # Update memory history
         messages.append(ai_message)
-        messages.append(
-            ToolMessage(content=str(observation), tool_call_id=tool_call_id)
-        )
+        messages.append(ToolMessage(content=str(observation), tool_call_id=tool_call["id"]))
     print("ERROR : Max iterations reached wihtout a final answer.")
     return None
 
